@@ -97,8 +97,10 @@ class RequestMatchForm(forms.Form):
         max_length=BOT_ARGS_MAX_LENGTH,
         validators=[validate_bot_args],
         help_text=(
-            "Optional. Words prefixed with --bot1-, --bot2- or --bots- are passed as command line "
-            "arguments to bot 1, bot 2 or both, with the prefix replaced by --. Anything else is ignored."
+            "Optional. Split into words like a shell command line, then words prefixed with --bot1-, "
+            "--bot2- or --bots- are passed as arguments to bot 1, bot 2 or both, with the prefix "
+            "replaced by --. Anything else is ignored. Quote to include spaces: "
+            '--bots-message="good luck"'
         ),
     )
 

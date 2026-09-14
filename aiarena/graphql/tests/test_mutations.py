@@ -194,22 +194,21 @@ class TestRequestMatch(GraphQLTest):
     def test_bot_args_are_stored_and_split_per_bot(self, user, bot, other_bot, map_pool):
         """The requester's string is stored verbatim and served back already
         split, which is the shape the arena client consumes."""
+        raw = '--bots-tournament=worldcup --bot2-build="all in" --ignored'
+
         response = self.mutate(
             login_user=user,
             expected_status=200,
-            variables={
-                "input": self._request_match_input(
-                    bot, other_bot, map_pool, botArgs="--bots-tournament=worldcup --bot2-build=cheese --ignored"
-                )
-            },
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs=raw)},
         )
 
         match = Match.objects.get(requested_by=user)
-        assert match.bot_args == "--bots-tournament=worldcup --bot2-build=cheese --ignored"
+        assert match.bot_args == raw
 
         [requested_match] = response["requestMatch"]["match"]
+        assert requested_match["botArgs"] == raw
         assert requested_match["bot1Args"] == ["--tournament=worldcup"]
-        assert requested_match["bot2Args"] == ["--tournament=worldcup", "--build=cheese"]
+        assert requested_match["bot2Args"] == ["--tournament=worldcup", "--build=all in"]
 
     def test_bot_args_omitted_defaults_to_empty(self, user, bot, other_bot, map_pool):
         response = self.mutate(
@@ -241,6 +240,16 @@ class TestRequestMatch(GraphQLTest):
             login_user=user,
             variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-a\n--bots-b")},
             expected_validation_errors={"botArgs": ["Only printable ASCII characters are allowed."]},
+        )
+        assert not Match.objects.filter(requested_by=user).exists()
+
+    def test_bot_args_rejects_unclosed_quote(self, user, bot, other_bot, map_pool):
+        """Better the requester hears about it here than gets a match that
+        quietly ran without their arguments."""
+        self.mutate(
+            login_user=user,
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs='--bots-message="oops')},
+            expected_validation_errors={"botArgs": ["Could not be split into arguments: No closing quotation."]},
         )
         assert not Match.objects.filter(requested_by=user).exists()
 

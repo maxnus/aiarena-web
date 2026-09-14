@@ -322,10 +322,12 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
             aria-describedby="bot-args-help"
           />
           <span id="bot-args-help" className="text-sm text-gray-400">
-            Optional. Words prefixed with <code>--bot1-</code>,{" "}
-            <code>--bot2-</code> or <code>--bots-</code> are passed as command
-            line arguments to bot 1, bot 2 or both, with the prefix replaced by{" "}
-            <code>--</code>. Anything else is ignored.
+            Optional. Split into words like a shell command line, then words
+            prefixed with <code>--bot1-</code>, <code>--bot2-</code> or{" "}
+            <code>--bots-</code> are passed as arguments to bot 1, bot 2 or
+            both, with the prefix replaced by <code>--</code>. Anything else is
+            ignored. Quote to include spaces:{" "}
+            <code>--bots-message=&quot;good luck&quot;</code>.
           </span>
         </label>
       </Form>

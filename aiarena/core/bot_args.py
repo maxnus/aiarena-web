@@ -5,7 +5,8 @@ It lets the requester give the bots context that isn't part of the bot zip —
 "you are playing in a tournament", "play your cheese build" — without the bot
 author having to time an upload around it. Ladder matches never carry one.
 
-The string is split on whitespace and each word is routed by its prefix:
+The string is split into words the way a shell would, and each word is routed by
+its prefix:
 
     --bot1-<rest>   only bot 1 receives it
     --bot2-<rest>   only bot 2 receives it
@@ -20,10 +21,16 @@ feature from colliding with the arguments the arena client itself passes
 (``--LadderServer``, ``--GamePort``, ...): there is no spelling of this string
 that can override one of them.
 
-Note that splitting is on whitespace only — there is no shell, and no quote
-handling. Quotes in ``--bots-score="1:3"`` reach the bot verbatim as part of the
-argument, and an argument cannot contain a space.
+Quoting is the shell's: quotes group and then disappear, so
+``--bots-score="1:3"`` reaches the bot as ``--score=1:3``, and
+``--bots-msg="hello world"`` as the single argument ``--msg=hello world``. No
+shell ever actually runs — each word becomes one argv entry directly — so
+quoting is the only shell behaviour here. There is no expansion, substitution or
+word splitting of anything a quote produced.
 """
+
+import shlex
+
 
 MAX_LENGTH = 500
 """Upper bound on the raw string. Generous for a handful of flags, small enough
@@ -38,12 +45,32 @@ _ROUTING_PREFIXES = (
 _ARG_PREFIX = "--"
 
 
+def split_bot_args(raw: str | None) -> list[str]:
+    """Split a bot args string into words, shell-style.
+
+    Raises ValueError if the quoting doesn't close. Callers on the write path
+    should surface that to the requester; callers on the read path should not —
+    see parse_bot_args.
+    """
+    return shlex.split(raw or "")
+
+
 def parse_bot_args(raw: str | None) -> tuple[list[str], list[str]]:
-    """Split a match's bot args string into the arguments for bot 1 and bot 2."""
+    """Split a match's bot args string into the arguments for bot 1 and bot 2.
+
+    Unparseable input yields no arguments rather than raising. Validation on the
+    way in is what rejects it; by the time a match is being dispatched, refusing
+    to run it over a quote is far worse than running it without the arguments.
+    """
+    try:
+        words = split_bot_args(raw)
+    except ValueError:
+        return [], []
+
     bot1_args: list[str] = []
     bot2_args: list[str] = []
 
-    for word in (raw or "").split():
+    for word in words:
         for prefix, (for_bot1, for_bot2) in _ROUTING_PREFIXES:
             if not word.startswith(prefix) or len(word) == len(prefix):
                 continue

@@ -31,9 +31,35 @@ from aiarena.core.bot_args import parse_bot_args
         ),
         # Repeats are kept — it's up to the bot to decide what a repeat means.
         ("--bots-x --bots-x", (["--x", "--x"], ["--x", "--x"])),
-        # There is no shell, so quotes are part of the argument text.
-        ('--bots-score="1:3"', (['--score="1:3"'], ['--score="1:3"'])),
     ],
 )
 def test_parse_bot_args(raw, expected):
     assert parse_bot_args(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # Quotes group and then disappear, as in a shell.
+        ('--bots-score="1:3"', (["--score=1:3"], ["--score=1:3"])),
+        ("--bots-score='1:3'", (["--score=1:3"], ["--score=1:3"])),
+        # A quoted space stays inside one argument instead of splitting it.
+        ('--bots-message="good luck"', (["--message=good luck"], ["--message=good luck"])),
+        ('"--bots-message=good luck" --bots-x', (["--message=good luck", "--x"], ["--message=good luck", "--x"])),
+        # The routing prefix is matched after unquoting, so quoting it still routes.
+        ('"--bot1-quoted"', (["--quoted"], [])),
+        # Backslash escapes, also as in a shell.
+        ("--bots-message=good\\ luck", (["--message=good luck"], ["--message=good luck"])),
+        # An argument can be quoted down to just its prefix, which is still not an argument.
+        ('"--bots-"', ([], [])),
+    ],
+)
+def test_parse_bot_args_quoting(raw, expected):
+    assert parse_bot_args(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ['--bots-message="unclosed', "--bots-message='unclosed", "--bots-trailing\\"])
+def test_parse_bot_args_tolerates_unsplittable_input(raw):
+    """Validation rejects these on the way in. If one reaches the read path
+    anyway, dispatching the match without arguments beats failing to dispatch."""
+    assert parse_bot_args(raw) == ([], [])

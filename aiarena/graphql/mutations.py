@@ -67,9 +67,10 @@ class RequestMatchInput(CleanedInputType):
     bot_args = graphene.String(
         default_value="",
         description=(
-            "Optional extra command line arguments for the bots. Words prefixed with '--bot1-', "
-            "'--bot2-' or '--bots-' are passed to bot 1, bot 2 or both respectively, with the "
-            "prefix replaced by '--'. Any other word is ignored."
+            "Optional extra command line arguments for the bots. Split into words shell-style, "
+            "then words prefixed with '--bot1-', '--bot2-' or '--bots-' are passed to bot 1, "
+            "bot 2 or both respectively, with the prefix replaced by '--'. Any other word is "
+            "ignored."
         ),
     )
 
