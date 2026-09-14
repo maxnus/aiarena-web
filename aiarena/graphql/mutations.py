@@ -21,6 +21,7 @@ from rest_framework.authtoken.models import Token
 from aiarena.api.arenaclient.common.ac_coordinator import ACCoordinator
 from aiarena.api.arenaclient.common.exceptions import LadderDisabled
 from aiarena.api.arenaclient.common.result_submission_handler import process_competition_result, update_match_tags
+from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
 from aiarena.core.exceptions import BotUploadsDisabled, CompetitionClosed, CompetitionClosing, MatchRequestException
 from aiarena.core.models import Match, Result, TemporaryUpload
 from aiarena.core.models.bot import Bot
@@ -34,6 +35,7 @@ from aiarena.core.services.service_implementations._competition_trophies import 
     check_competition_trophies,
 )
 from aiarena.core.services.service_implementations.internal.match_requests import handle_request_matches
+from aiarena.core.validators import validate_bot_args
 from aiarena.graphql.common import (
     BaseMutation,
     CleanedInputMutation,
@@ -62,6 +64,14 @@ class RequestMatchInput(CleanedInputType):
     map_selection_type = graphene.String()
     map_pool = MapPoolID(default=None)
     chosen_map = MapID(default=None)
+    bot_args = graphene.String(
+        default_value="",
+        description=(
+            "Optional extra command line arguments for the bots. Words prefixed with '--bot1-', "
+            "'--bot2-' or '--bots-' are passed to bot 1, bot 2 or both respectively, with the "
+            "prefix replaced by '--'. Any other word is ignored."
+        ),
+    )
 
     class Meta:
         required_fields = [
@@ -70,6 +80,15 @@ class RequestMatchInput(CleanedInputType):
             "match_count",
             "map_selection_type",
         ]
+
+    @staticmethod
+    def clean_bot_args(bot_args: str, info):
+        if bot_args is None:
+            return ""
+        validate_bot_args(bot_args)
+        if len(bot_args) > BOT_ARGS_MAX_LENGTH:
+            raise ValidationError(f"'botArgs' must be at most {BOT_ARGS_MAX_LENGTH} characters long.")
+        return bot_args
 
     def clean(self, info):
         if not self.map_pool and not self.chosen_map:
@@ -106,6 +125,7 @@ class RequestMatch(CleanedInputMutation):
                 map_selection_type=input_object.map_selection_type,
                 map_pool=input_object.map_pool,
                 chosen_map=input_object.chosen_map,
+                bot_args=input_object.bot_args,
             )
 
             return cls(errors=[], match=matches)

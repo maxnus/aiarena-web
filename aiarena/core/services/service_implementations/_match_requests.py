@@ -33,6 +33,7 @@ class MatchRequests:
         map_selection_type,
         map_pool,
         chosen_map,
+        bot_args="",
     ):
         """
         Request a number of matches between two bots, with the given parameters.
@@ -50,6 +51,7 @@ class MatchRequests:
                 map_selection_type,
                 map_pool,
                 chosen_map,
+                bot_args,
             )
 
     def request_match(self, user: WebsiteUser, bot, opponent, map: Map = None, game_mode: GameMode = None):

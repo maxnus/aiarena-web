@@ -9,9 +9,11 @@ from django.views.generic import FormView
 from constance import config
 from django_select2.forms import Select2Widget
 
+from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
 from aiarena.core.exceptions import MatchRequestException
 from aiarena.core.models import Bot, Map, MapPool
 from aiarena.core.services import match_requests, supporters
+from aiarena.core.validators import validate_bot_args
 
 
 class BotWidget(Select2Widget):
@@ -89,6 +91,17 @@ class RequestMatchForm(forms.Form):
 
     match_count = forms.IntegerField(min_value=1, initial=1)
 
+    bot_args = forms.CharField(
+        label="Bot Arguments",
+        required=False,
+        max_length=BOT_ARGS_MAX_LENGTH,
+        validators=[validate_bot_args],
+        help_text=(
+            "Optional. Words prefixed with --bot1-, --bot2- or --bots- are passed as command line "
+            "arguments to bot 1, bot 2 or both, with the prefix replaced by --. Anything else is ignored."
+        ),
+    )
+
     def clean_matchup_race(self):
         """If matchup_type isn't set, assume it's any"""
         return (
@@ -154,6 +167,7 @@ class RequestMatch(LoginRequiredMixin, FormView):
             map_selection_type = form.cleaned_data["map_selection_type"]
             map_pool = form.cleaned_data["map_pool"]
             chosen_map = form.cleaned_data["map"]
+            bot_args = form.cleaned_data["bot_args"]
 
             match_list = match_requests.request_matches(
                 self.request.user.websiteuser,
@@ -165,6 +179,7 @@ class RequestMatch(LoginRequiredMixin, FormView):
                 map_selection_type,
                 map_pool,
                 chosen_map,
+                bot_args,
             )
             message = ""
             for match in match_list:

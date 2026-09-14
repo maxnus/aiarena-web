@@ -20,6 +20,9 @@ import { RequestMatchModalQuery } from "./__generated__/RequestMatchModalQuery.g
 import useStateWithSessionStorage from "@/_components/_hooks/useStateWithSessionStorage";
 import { useSnackbar } from "notistack";
 
+// Mirrors MAX_LENGTH in aiarena/core/bot_args.py — the server rejects anything longer.
+const BOT_ARGS_MAX_LENGTH = 500;
+
 interface UploadBotModal {
   isOpen: boolean;
   onClose: () => void;
@@ -51,6 +54,11 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
 
   const [selectedMapPool, setSelectedMapPool] =
     useStateWithSessionStorage<MapPoolType | null>("mapPool");
+
+  const [botArgs, setBotArgs] = useStateWithSessionStorage<string>(
+    "botArgs",
+    "",
+  );
 
   const data = useLazyLoadQuery<RequestMatchModalQuery>(
     graphql`
@@ -181,6 +189,7 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
                 : undefined,
             mapPool:
               mapSelectionType === "map_pool" ? selectedMapPool?.id : undefined,
+            botArgs: botArgs?.trim() || "",
           },
         },
         onCompleted: (...args) => {
@@ -301,6 +310,24 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
             </label>
           ) : null}
         </div>
+
+        <label className="mt-4 flex flex-col gap-1">
+          <span className="font-medium">Bot Arguments</span>
+          <input
+            type="text"
+            value={botArgs ?? ""}
+            maxLength={BOT_ARGS_MAX_LENGTH}
+            placeholder="--bots-tournament=worldcup --bot2-build=cheese"
+            onChange={(e) => setBotArgs(e.target.value)}
+            aria-describedby="bot-args-help"
+          />
+          <span id="bot-args-help" className="text-sm text-gray-400">
+            Optional. Words prefixed with <code>--bot1-</code>,{" "}
+            <code>--bot2-</code> or <code>--bots-</code> are passed as command
+            line arguments to bot 1, bot 2 or both, with the prefix replaced by{" "}
+            <code>--</code>. Anything else is ignored.
+          </span>
+        </label>
       </Form>
     </Modal>
   );

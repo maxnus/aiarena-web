@@ -20,3 +20,8 @@ validate_bot_name = RegexValidator(
     r"^[0-9a-zA-Z\._\-]*$",
     "Only alphanumeric (A-Z, a-z, 0-9), period (.), underscore (_) and hyphen (-) characters are allowed.",
 )
+
+validate_bot_args = RegexValidator(
+    r"^[\x20-\x7e]*$",
+    "Only printable ASCII characters are allowed.",
+)

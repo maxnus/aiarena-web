@@ -4,6 +4,10 @@ from django.db import models
 from django.db.models.signals import m2m_changed, post_delete
 from django.dispatch import receiver
 
+from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
+from aiarena.core.bot_args import parse_bot_args
+from aiarena.core.validators import validate_bot_args
+
 from .map import Map
 from .match_tag import MatchTag
 from .mixins import LockableModelMixin, RandomManagerMixin
@@ -39,6 +43,13 @@ class Match(models.Model, LockableModelMixin, RandomManagerMixin):
     This can be false and other factors can still cause the match to be run on a trusted client.
     """
     tags = models.ManyToManyField(MatchTag, blank=True)
+    # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
+    bot_args = models.CharField(
+        max_length=BOT_ARGS_MAX_LENGTH, blank=True, default="", null=True, validators=[validate_bot_args]
+    )
+    """Extra command line arguments the requester wants passed on to the bots.
+
+    Only set for requested matches. See aiarena.core.bot_args for the format."""
 
     def __str__(self):
         return self.id.__str__()
@@ -54,6 +65,14 @@ class Match(models.Model, LockableModelMixin, RandomManagerMixin):
         if hasattr(self, "_participant2_list"):
             return self._participant2_list[0] if self._participant2_list else None
         return self.matchparticipation_set.get(participant_number=2)
+
+    @property
+    def bot1_args(self) -> list[str]:
+        return parse_bot_args(self.bot_args)[0]
+
+    @property
+    def bot2_args(self) -> list[str]:
+        return parse_bot_args(self.bot_args)[1]
 
     @property
     def is_requested(self):

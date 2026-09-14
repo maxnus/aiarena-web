@@ -4,6 +4,7 @@ from django.contrib.auth import get_user
 import pytest
 from rest_framework.authtoken.models import Token
 
+from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
 from aiarena.core.models import Bot, CompetitionParticipation, Match, MatchParticipation
 from aiarena.core.tests.base import GraphQLTest
 from aiarena.graphql import BotType, CompetitionType, MapPoolType, MapType
@@ -16,6 +17,11 @@ class TestRequestMatch(GraphQLTest):
     mutation = """
         mutation ($input: RequestMatchInput!) {
             requestMatch(input: $input) {
+                match {
+                    botArgs
+                    bot1Args
+                    bot2Args
+                }
                 errors {
                     messages
                     field
@@ -23,6 +29,16 @@ class TestRequestMatch(GraphQLTest):
             }
         }
     """
+
+    def _request_match_input(self, bot, other_bot, map_pool, **overrides):
+        return {
+            "bot1": self.to_global_id(BotType, bot.id),
+            "bot2": self.to_global_id(BotType, other_bot.id),
+            "mapSelectionType": "map_pool",
+            "mapPool": self.to_global_id(MapPoolType, map_pool.id),
+            "matchCount": 1,
+            **overrides,
+        }
 
     def test_specific_matchup_specific_map_success(self, user, bot, other_bot, map):
         """
@@ -172,6 +188,71 @@ class TestRequestMatch(GraphQLTest):
                 }
             },
             expected_validation_errors={"bot1": ["Required field"]},
+        )
+        assert not Match.objects.filter(requested_by=user).exists()
+
+    def test_bot_args_are_stored_and_split_per_bot(self, user, bot, other_bot, map_pool):
+        """The requester's string is stored verbatim and served back already
+        split, which is the shape the arena client consumes."""
+        response = self.mutate(
+            login_user=user,
+            expected_status=200,
+            variables={
+                "input": self._request_match_input(
+                    bot, other_bot, map_pool, botArgs="--bots-tournament=worldcup --bot2-build=cheese --ignored"
+                )
+            },
+        )
+
+        match = Match.objects.get(requested_by=user)
+        assert match.bot_args == "--bots-tournament=worldcup --bot2-build=cheese --ignored"
+
+        [requested_match] = response["requestMatch"]["match"]
+        assert requested_match["bot1Args"] == ["--tournament=worldcup"]
+        assert requested_match["bot2Args"] == ["--tournament=worldcup", "--build=cheese"]
+
+    def test_bot_args_omitted_defaults_to_empty(self, user, bot, other_bot, map_pool):
+        response = self.mutate(
+            login_user=user,
+            expected_status=200,
+            variables={"input": self._request_match_input(bot, other_bot, map_pool)},
+        )
+
+        assert Match.objects.get(requested_by=user).bot_args == ""
+
+        [requested_match] = response["requestMatch"]["match"]
+        assert requested_match["bot1Args"] == []
+        assert requested_match["bot2Args"] == []
+
+    def test_bot_args_rejects_non_ascii(self, user, bot, other_bot, map_pool):
+        self.mutate(
+            login_user=user,
+            variables={
+                "input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-build=chees\u00e9")
+            },
+            expected_validation_errors={"botArgs": ["Only printable ASCII characters are allowed."]},
+        )
+        assert not Match.objects.filter(requested_by=user).exists()
+
+    def test_bot_args_rejects_newlines(self, user, bot, other_bot, map_pool):
+        """Newlines would let the string escape whatever the arena client
+        renders it into downstream."""
+        self.mutate(
+            login_user=user,
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-a\n--bots-b")},
+            expected_validation_errors={"botArgs": ["Only printable ASCII characters are allowed."]},
+        )
+        assert not Match.objects.filter(requested_by=user).exists()
+
+    def test_bot_args_rejects_too_long(self, user, bot, other_bot, map_pool):
+        too_long = "--bots-" + "a" * BOT_ARGS_MAX_LENGTH
+
+        self.mutate(
+            login_user=user,
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs=too_long)},
+            expected_validation_errors={
+                "botArgs": [f"'botArgs' must be at most {BOT_ARGS_MAX_LENGTH} characters long."]
+            },
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
