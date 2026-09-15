@@ -317,7 +317,7 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
             type="text"
             value={botArgs ?? ""}
             maxLength={BOT_ARGS_MAX_LENGTH}
-            placeholder="--bots-tournament=worldcup --bot2-build=cheese"
+            placeholder={'--bots-tournament=worldcup --bot2-build="all in"'}
             onChange={(e) => setBotArgs(e.target.value)}
             aria-describedby="bot-args-help"
           />
