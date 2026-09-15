@@ -45,27 +45,14 @@ _ROUTING_PREFIXES = (
 _ARG_PREFIX = "--"
 
 
-def split_bot_args(raw: str | None) -> list[str]:
-    """Split a bot args string into words, shell-style.
-
-    Raises ValueError if the quoting doesn't close. Callers on the write path
-    should surface that to the requester; callers on the read path should not —
-    see parse_bot_args.
-    """
-    return shlex.split(raw or "")
-
-
 def parse_bot_args(raw: str | None) -> tuple[list[str], list[str]]:
     """Split a match's bot args string into the arguments for bot 1 and bot 2.
 
-    Unparseable input yields no arguments rather than raising. Validation on the
-    way in is what rejects it; by the time a match is being dispatched, refusing
-    to run it over a quote is far worse than running it without the arguments.
+    Raises ValueError if the quoting doesn't close. Validation calls this so the
+    requester is told at submit time; Match decides what a stored value that
+    fails anyway should cost.
     """
-    try:
-        words = split_bot_args(raw)
-    except ValueError:
-        return [], []
+    words = shlex.split(raw or "")
 
     bot1_args: list[str] = []
     bot2_args: list[str] = []

@@ -1,6 +1,7 @@
 import pytest
 
 from aiarena.core.bot_args import parse_bot_args
+from aiarena.core.models import Match
 
 
 @pytest.mark.parametrize(
@@ -59,7 +60,32 @@ def test_parse_bot_args_quoting(raw, expected):
 
 
 @pytest.mark.parametrize("raw", ['--bots-message="unclosed', "--bots-message='unclosed", "--bots-trailing\\"])
-def test_parse_bot_args_tolerates_unsplittable_input(raw):
-    """Validation rejects these on the way in. If one reaches the read path
-    anyway, dispatching the match without arguments beats failing to dispatch."""
-    assert parse_bot_args(raw) == ([], [])
+def test_parse_bot_args_rejects_unsplittable_input(raw):
+    """Validation calls this, so the requester is told at submit time. What a
+    stored value that fails anyway should cost is Match's decision, not this
+    function's - see Match._parsed_bot_args."""
+    with pytest.raises(ValueError):
+        parse_bot_args(raw)
+
+
+@pytest.mark.django_db
+def test_match_serves_bot_args_split_per_bot(queued_match):
+    queued_match.bot_args = '--bots-tournament=worldcup --bot2-build="all in"'
+    queued_match.save()
+
+    assert queued_match.bot1_args == ["--tournament=worldcup"]
+    assert queued_match.bot2_args == ["--tournament=worldcup", "--build=all in"]
+
+
+@pytest.mark.django_db
+def test_match_logs_and_serves_nothing_for_unusable_bot_args(queued_match, caplog):
+    """Validation rejects this at submit time, so a stored value like it means
+    something wrote past validation. Handing the arena client a match with no
+    arguments beats failing getNextMatch and wedging the client on this match."""
+    Match.objects.filter(pk=queued_match.pk).update(bot_args='--bots-message="unclosed')
+    match = Match.objects.get(pk=queued_match.pk)
+
+    assert match.bot1_args == []
+    assert match.bot2_args == []
+    assert "unusable bot_args" in caplog.text
+    assert str(match.id) in caplog.text
