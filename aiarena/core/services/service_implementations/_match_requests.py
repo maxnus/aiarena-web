@@ -54,12 +54,14 @@ class MatchRequests:
                 bot_args,
             )
 
-    def request_match(self, user: WebsiteUser, bot, opponent, map: Map = None, game_mode: GameMode = None):
+    def request_match(
+        self, user: WebsiteUser, bot, opponent, map: Map = None, game_mode: GameMode = None, bot_args: str = ""
+    ):
         """
         Request a single match between two bots, with the given parameters.
         """
         with transaction.atomic():
-            return handle_request_match(bot, game_mode, map, opponent, user)
+            return handle_request_match(bot, game_mode, map, opponent, user, bot_args)
 
     def get_user_match_request_count_left(self, user: User):
         """

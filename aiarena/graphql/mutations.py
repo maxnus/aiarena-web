@@ -21,7 +21,6 @@ from rest_framework.authtoken.models import Token
 from aiarena.api.arenaclient.common.ac_coordinator import ACCoordinator
 from aiarena.api.arenaclient.common.exceptions import LadderDisabled
 from aiarena.api.arenaclient.common.result_submission_handler import process_competition_result, update_match_tags
-from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
 from aiarena.core.exceptions import BotUploadsDisabled, CompetitionClosed, CompetitionClosing, MatchRequestException
 from aiarena.core.models import Match, Result, TemporaryUpload
 from aiarena.core.models.bot import Bot
@@ -35,7 +34,7 @@ from aiarena.core.services.service_implementations._competition_trophies import 
     check_competition_trophies,
 )
 from aiarena.core.services.service_implementations.internal.match_requests import handle_request_matches
-from aiarena.core.validators import validate_bot_args
+from aiarena.core.validators import clean_requested_bot_args
 from aiarena.graphql.common import (
     BaseMutation,
     CleanedInputMutation,
@@ -84,14 +83,7 @@ class RequestMatchInput(CleanedInputType):
 
     @staticmethod
     def clean_bot_args(bot_args: str, info):
-        if not bot_args:
-            return ""
-        if not config.ALLOW_MATCH_REQUEST_BOT_ARGS:
-            raise ValidationError("Bot arguments are currently disabled.")
-        validate_bot_args(bot_args)
-        if len(bot_args) > BOT_ARGS_MAX_LENGTH:
-            raise ValidationError(f"'botArgs' must be at most {BOT_ARGS_MAX_LENGTH} characters long.")
-        return bot_args
+        return clean_requested_bot_args(bot_args)
 
     def clean(self, info):
         if not self.map_pool and not self.chosen_map:

@@ -289,7 +289,7 @@ class TestRequestMatch(GraphQLTest):
             login_user=user,
             variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs=too_long)},
             expected_validation_errors={
-                "botArgs": [f"'botArgs' must be at most {BOT_ARGS_MAX_LENGTH} characters long."]
+                "botArgs": [f"Bot arguments must be at most {BOT_ARGS_MAX_LENGTH} characters long."]
             },
         )
         assert not Match.objects.filter(requested_by=user).exists()
