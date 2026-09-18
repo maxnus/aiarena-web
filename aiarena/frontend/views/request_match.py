@@ -48,7 +48,8 @@ class RequestMatchForm(forms.Form):
 
         # Removed rather than hidden, so a disabled feature can't be posted to.
         if not config.ALLOW_MATCH_REQUEST_BOT_ARGS:
-            del self.fields["bot_args"]
+            del self.fields["bot1_args"]
+            del self.fields["bot2_args"]
 
     MATCHUP_TYPE_CHOICES = (
         ("specific_matchup", "Specific Matchup"),
@@ -95,17 +96,23 @@ class RequestMatchForm(forms.Form):
 
     match_count = forms.IntegerField(min_value=1, initial=1)
 
-    bot_args = forms.CharField(
-        label="Bot Arguments",
+    bot1_args = forms.CharField(
+        label="Bot 1 Arguments",
         required=False,
         max_length=BOT_ARGS_MAX_LENGTH,
         validators=[validate_bot_args],
         help_text=(
-            "Optional. Split into words like a shell command line, then words prefixed with --bot1-, "
-            "--bot2- or --bots- are passed as arguments to bot 1, bot 2 or both, with the prefix "
-            "replaced by --. Anything else is ignored. Quote to include spaces: "
-            '--bots-message="good luck"'
+            "Optional. Passed to bot 1 verbatim as extra command line arguments, split the way a "
+            'shell would - quote to include spaces: --message="good luck"'
         ),
+    )
+
+    bot2_args = forms.CharField(
+        label="Bot 2 Arguments",
+        required=False,
+        max_length=BOT_ARGS_MAX_LENGTH,
+        validators=[validate_bot_args],
+        help_text="Optional. Same, for bot 2.",
     )
 
     def clean_matchup_race(self):
@@ -173,7 +180,8 @@ class RequestMatch(LoginRequiredMixin, FormView):
             map_selection_type = form.cleaned_data["map_selection_type"]
             map_pool = form.cleaned_data["map_pool"]
             chosen_map = form.cleaned_data["map"]
-            bot_args = form.cleaned_data.get("bot_args", "")
+            bot1_args = form.cleaned_data.get("bot1_args", "")
+            bot2_args = form.cleaned_data.get("bot2_args", "")
 
             match_list = match_requests.request_matches(
                 self.request.user.websiteuser,
@@ -185,7 +193,8 @@ class RequestMatch(LoginRequiredMixin, FormView):
                 map_selection_type,
                 map_pool,
                 chosen_map,
-                bot_args,
+                bot1_args,
+                bot2_args,
             )
             message = ""
             for match in match_list:

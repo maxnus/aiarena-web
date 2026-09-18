@@ -63,14 +63,16 @@ class RequestMatchInput(CleanedInputType):
     map_selection_type = graphene.String()
     map_pool = MapPoolID(default=None)
     chosen_map = MapID(default=None)
-    bot_args = graphene.String(
+    bot1_args = graphene.String(
         default_value="",
         description=(
-            "Optional extra command line arguments for the bots. Split into words shell-style, "
-            "then words prefixed with '--bot1-', '--bot2-' or '--bots-' are passed to bot 1, "
-            "bot 2 or both respectively, with the prefix replaced by '--'. Any other word is "
-            "ignored."
+            "Optional extra command line for bot 1, passed to it verbatim. The arena client splits "
+            "it into arguments the way a shell would, so quote to include spaces."
         ),
+    )
+    bot2_args = graphene.String(
+        default_value="",
+        description="Optional extra command line for bot 2. See bot1Args.",
     )
 
     class Meta:
@@ -82,8 +84,12 @@ class RequestMatchInput(CleanedInputType):
         ]
 
     @staticmethod
-    def clean_bot_args(bot_args: str, info):
-        return clean_requested_bot_args(bot_args)
+    def clean_bot1_args(bot1_args: str, info):
+        return clean_requested_bot_args(bot1_args)
+
+    @staticmethod
+    def clean_bot2_args(bot2_args: str, info):
+        return clean_requested_bot_args(bot2_args)
 
     def clean(self, info):
         if not self.map_pool and not self.chosen_map:
@@ -120,7 +126,8 @@ class RequestMatch(CleanedInputMutation):
                 map_selection_type=input_object.map_selection_type,
                 map_pool=input_object.map_pool,
                 chosen_map=input_object.chosen_map,
-                bot_args=input_object.bot_args,
+                bot1_args=input_object.bot1_args,
+                bot2_args=input_object.bot2_args,
             )
 
             return cls(errors=[], match=matches)

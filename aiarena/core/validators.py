@@ -6,7 +6,7 @@ from django.core.validators import RegexValidator
 from constance import config
 
 from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
-from aiarena.core.bot_args import parse_bot_args
+from aiarena.core.bot_args import reserved_flags_in, split_bot_args
 
 
 def validate_not_nan(value):
@@ -33,21 +33,26 @@ _validate_printable_ascii = RegexValidator(
 
 
 def validate_bot_args(value):
-    """Check a match's bot args string is something we can hand to a bot.
+    """Check one bot's args string is something we can hand to a bot.
 
     Printable ASCII keeps the string from carrying control characters into
-    whatever the arena client renders it into downstream; parsing has to succeed
-    so the requester learns about an unclosed quote here, rather than getting a
-    match that runs with no arguments.
+    whatever the arena client renders it into downstream. It has to split
+    cleanly, so the requester hears about an unclosed quote here rather than
+    getting a match that ran without their arguments. And it must not set an
+    argument the arena client passes itself — see RESERVED_FLAGS.
 
-    This runs the same parse the arena client's arguments are later derived
-    from, so anything that gets past it is something we can actually serve.
+    Checks only: the value is returned unchanged, and the string that reaches
+    the bot is the one submitted.
     """
     _validate_printable_ascii(value)
     try:
-        parse_bot_args(value)
+        split_bot_args(value)
     except ValueError as e:
         raise ValidationError(f"Could not be split into arguments: {e}.")
+    if reserved := reserved_flags_in(value):
+        raise ValidationError(
+            "The arena client sets these itself and they cannot be overridden: " + ", ".join(reserved) + "."
+        )
     return value
 
 

@@ -61,13 +61,12 @@ class MatchRequestsViewSetTests(MatchReadyMixin, TestCase):
         set bot arguments, not just the web UI."""
         user = self.staffUser1
         user.patreon_level = "bronze"
-        response = self.request_match(user, bot_args='--bots-tournament=worldcup --bot2-build="all in"')
+        response = self.request_match(user, bot1_args="--tournament=worldcup", bot2_args='--build="all in"')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         match = Match.objects.get(id=response.data["match_id"])
-        self.assertEqual(match.bot_args, '--bots-tournament=worldcup --bot2-build="all in"')
-        self.assertEqual(match.bot1_args, ["--tournament=worldcup"])
-        self.assertEqual(match.bot2_args, ["--tournament=worldcup", "--build=all in"])
+        self.assertEqual(match.bot1_args, "--tournament=worldcup")
+        self.assertEqual(match.bot2_args, '--build="all in"')
 
     def test_request_match_without_bot_args(self):
         user = self.staffUser1
@@ -75,27 +74,29 @@ class MatchRequestsViewSetTests(MatchReadyMixin, TestCase):
         response = self.request_match(user)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Match.objects.get(id=response.data["match_id"]).bot_args, "")
+        match = Match.objects.get(id=response.data["match_id"])
+        self.assertEqual(match.bot1_args, "")
+        self.assertEqual(match.bot2_args, "")
 
     def test_request_match_bot_args_rejected_while_disabled(self):
         """Same rejection as the GraphQL mutation gives - both APIs run the
         same cleaner, so they can't drift apart."""
         user = self.staffUser1
         user.patreon_level = "bronze"
-        response = self.request_match(user, bot_args="--bots-tournament=worldcup")
+        response = self.request_match(user, bot1_args="--tournament=worldcup")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["bot_args"], ["Bot arguments are currently disabled."])
+        self.assertEqual(response.data["bot1_args"], ["Bot arguments are currently disabled."])
         self.assertEqual(Match.objects.count(), 0)
 
     @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_request_match_bot_args_rejects_unclosed_quote(self):
         user = self.staffUser1
         user.patreon_level = "bronze"
-        response = self.request_match(user, bot_args='--bots-message="oops')
+        response = self.request_match(user, bot1_args='--message="oops')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["bot_args"], ["Could not be split into arguments: No closing quotation."])
+        self.assertEqual(response.data["bot1_args"], ["Could not be split into arguments: No closing quotation."])
         self.assertEqual(Match.objects.count(), 0)
 
     def test_request_match_invalid_bot(self):

@@ -55,8 +55,13 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
   const [selectedMapPool, setSelectedMapPool] =
     useStateWithSessionStorage<MapPoolType | null>("mapPool");
 
-  const [botArgs, setBotArgs] = useStateWithSessionStorage<string>(
-    "botArgs",
+  const [bot1Args, setBot1Args] = useStateWithSessionStorage<string>(
+    "bot1Args",
+    "",
+  );
+
+  const [bot2Args, setBot2Args] = useStateWithSessionStorage<string>(
+    "bot2Args",
     "",
   );
 
@@ -194,7 +199,8 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
                 : undefined,
             mapPool:
               mapSelectionType === "map_pool" ? selectedMapPool?.id : undefined,
-            botArgs: botArgsEnabled ? botArgs?.trim() || "" : "",
+            bot1Args: botArgsEnabled ? bot1Args?.trim() || "" : "",
+            bot2Args: botArgsEnabled ? bot2Args?.trim() || "" : "",
           },
         },
         onCompleted: (...args) => {
@@ -317,25 +323,38 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
         </div>
 
         {botArgsEnabled ? (
-          <label className="mt-4 flex flex-col gap-1">
-            <span className="font-medium">Bot Arguments</span>
-            <input
-              type="text"
-              value={botArgs ?? ""}
-              maxLength={BOT_ARGS_MAX_LENGTH}
-              placeholder={'--bots-tournament=worldcup --bot2-build="all in"'}
-              onChange={(e) => setBotArgs(e.target.value)}
-              aria-describedby="bot-args-help"
-            />
+          <div className="mt-4 flex flex-col gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="font-medium">Bot 1 Arguments</span>
+              <input
+                type="text"
+                value={bot1Args ?? ""}
+                maxLength={BOT_ARGS_MAX_LENGTH}
+                placeholder="--tournament=worldcup"
+                onChange={(e) => setBot1Args(e.target.value)}
+                aria-describedby="bot-args-help"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="font-medium">Bot 2 Arguments</span>
+              <input
+                type="text"
+                value={bot2Args ?? ""}
+                maxLength={BOT_ARGS_MAX_LENGTH}
+                placeholder={'--tournament=worldcup --build="all in"'}
+                onChange={(e) => setBot2Args(e.target.value)}
+                aria-describedby="bot-args-help"
+              />
+            </label>
+
             <span id="bot-args-help" className="text-sm text-gray-400">
-              Optional. Split into words like a shell command line, then words
-              prefixed with <code>--bot1-</code>, <code>--bot2-</code> or{" "}
-              <code>--bots-</code> are passed as arguments to bot 1, bot 2 or
-              both, with the prefix replaced by <code>--</code>. Anything else
-              is ignored. Quote to include spaces:{" "}
-              <code>--bots-message=&quot;good luck&quot;</code>.
+              Optional. Each is passed to that bot verbatim as extra command
+              line arguments, split the way a shell would — so quote to include
+              spaces: <code>--message=&quot;good luck&quot;</code>. Arguments
+              the arena client sets itself can&apos;t be overridden.
             </span>
-          </label>
+          </div>
         ) : null}
       </Form>
     </Modal>

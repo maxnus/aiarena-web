@@ -3,10 +3,8 @@ import logging
 from django.db import models
 from django.db.models.signals import m2m_changed, post_delete
 from django.dispatch import receiver
-from django.utils.functional import cached_property
 
 from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
-from aiarena.core.bot_args import parse_bot_args
 from aiarena.core.validators import validate_bot_args
 
 from .map import Map
@@ -45,12 +43,17 @@ class Match(models.Model, LockableModelMixin, RandomManagerMixin):
     """
     tags = models.ManyToManyField(MatchTag, blank=True)
     # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
-    bot_args = models.CharField(
+    bot1_args = models.CharField(
         max_length=BOT_ARGS_MAX_LENGTH, blank=True, default="", null=True, validators=[validate_bot_args]
     )
-    """Extra command line arguments the requester wants passed on to the bots.
+    # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
+    bot2_args = models.CharField(
+        max_length=BOT_ARGS_MAX_LENGTH, blank=True, default="", null=True, validators=[validate_bot_args]
+    )
+    """Extra command line for each bot, as the requester typed it.
 
-    Only set for requested matches. See aiarena.core.bot_args for the format."""
+    Only set for requested matches. Served to the arena client verbatim — see
+    aiarena.core.bot_args."""
 
     def __str__(self):
         return self.id.__str__()
@@ -66,34 +69,6 @@ class Match(models.Model, LockableModelMixin, RandomManagerMixin):
         if hasattr(self, "_participant2_list"):
             return self._participant2_list[0] if self._participant2_list else None
         return self.matchparticipation_set.get(participant_number=2)
-
-    @property
-    def bot1_args(self) -> list[str]:
-        return self._parsed_bot_args[0]
-
-    @property
-    def bot2_args(self) -> list[str]:
-        return self._parsed_bot_args[1]
-
-    @cached_property
-    def _parsed_bot_args(self) -> tuple[list[str], list[str]]:
-        """The stored args, split per bot.
-
-        Validation rejects an unparseable string at submit time, so reaching the
-        except here means something wrote one past that — a shell, a script, a
-        data migration. We log it rather than raise: this is read while handing
-        a match to an arena client, and these fields are non-null, so raising
-        would fail the whole getNextMatch response. The match has already been
-        assigned by then, and it would be handed straight back on the next poll,
-        so the client would wedge on it instead of playing anything.
-        """
-        try:
-            return parse_bot_args(self.bot_args)
-        except ValueError as e:
-            logger.error(
-                "Match %s has unusable bot_args %r (%s) - starting bots without them", self.id, self.bot_args, e
-            )
-            return [], []
 
     @property
     def is_requested(self):

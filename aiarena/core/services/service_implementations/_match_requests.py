@@ -33,7 +33,8 @@ class MatchRequests:
         map_selection_type,
         map_pool,
         chosen_map,
-        bot_args="",
+        bot1_args="",
+        bot2_args="",
     ):
         """
         Request a number of matches between two bots, with the given parameters.
@@ -51,17 +52,25 @@ class MatchRequests:
                 map_selection_type,
                 map_pool,
                 chosen_map,
-                bot_args,
+                bot1_args,
+                bot2_args,
             )
 
     def request_match(
-        self, user: WebsiteUser, bot, opponent, map: Map = None, game_mode: GameMode = None, bot_args: str = ""
+        self,
+        user: WebsiteUser,
+        bot,
+        opponent,
+        map: Map = None,
+        game_mode: GameMode = None,
+        bot1_args: str = "",
+        bot2_args: str = "",
     ):
         """
         Request a single match between two bots, with the given parameters.
         """
         with transaction.atomic():
-            return handle_request_match(bot, game_mode, map, opponent, user, bot_args)
+            return handle_request_match(bot, game_mode, map, opponent, user, bot1_args, bot2_args)
 
     def get_user_match_request_count_left(self, user: User):
         """

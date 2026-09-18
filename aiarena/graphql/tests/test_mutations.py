@@ -19,7 +19,6 @@ class TestRequestMatch(GraphQLTest):
         mutation ($input: RequestMatchInput!) {
             requestMatch(input: $input) {
                 match {
-                    botArgs
                     bot1Args
                     bot2Args
                 }
@@ -193,24 +192,27 @@ class TestRequestMatch(GraphQLTest):
         assert not Match.objects.filter(requested_by=user).exists()
 
     @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
-    def test_bot_args_are_stored_and_split_per_bot(self, user, bot, other_bot, map_pool):
-        """The requester's string is stored verbatim and served back already
-        split, which is the shape the arena client consumes."""
-        raw = '--bots-tournament=worldcup --bot2-build="all in" --ignored'
+    def test_bot_args_are_stored_and_served_verbatim(self, user, bot, other_bot, map_pool):
+        """Each bot's string is stored and served exactly as submitted - nothing
+        between the requester and the bot rewrites it."""
+        bot1_args = "--tournament=worldcup"
+        bot2_args = '--tournament=worldcup --build="all in"'
 
         response = self.mutate(
             login_user=user,
             expected_status=200,
-            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs=raw)},
+            variables={
+                "input": self._request_match_input(bot, other_bot, map_pool, bot1Args=bot1_args, bot2Args=bot2_args)
+            },
         )
 
         match = Match.objects.get(requested_by=user)
-        assert match.bot_args == raw
+        assert match.bot1_args == bot1_args
+        assert match.bot2_args == bot2_args
 
         [requested_match] = response["requestMatch"]["match"]
-        assert requested_match["botArgs"] == raw
-        assert requested_match["bot1Args"] == ["--tournament=worldcup"]
-        assert requested_match["bot2Args"] == ["--tournament=worldcup", "--build=all in"]
+        assert requested_match["bot1Args"] == bot1_args
+        assert requested_match["bot2Args"] == bot2_args
 
     def test_bot_args_omitted_defaults_to_empty(self, user, bot, other_bot, map_pool):
         response = self.mutate(
@@ -219,20 +221,47 @@ class TestRequestMatch(GraphQLTest):
             variables={"input": self._request_match_input(bot, other_bot, map_pool)},
         )
 
-        assert Match.objects.get(requested_by=user).bot_args == ""
+        match = Match.objects.get(requested_by=user)
+        assert match.bot1_args == ""
+        assert match.bot2_args == ""
 
         [requested_match] = response["requestMatch"]["match"]
-        assert requested_match["bot1Args"] == []
-        assert requested_match["bot2Args"] == []
+        assert requested_match["bot1Args"] == ""
+        assert requested_match["bot2Args"] == ""
+
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
+    def test_only_one_bot_may_be_given_arguments(self, user, bot, other_bot, map_pool):
+        self.mutate(
+            login_user=user,
+            expected_status=200,
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, bot2Args="--build=cheese")},
+        )
+
+        match = Match.objects.get(requested_by=user)
+        assert match.bot1_args == ""
+        assert match.bot2_args == "--build=cheese"
+
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
+    def test_bot_args_rejects_reserved_flags(self, user, bot, other_bot, map_pool):
+        """The strings reach the bot untouched, so this check is the only thing
+        stopping a requester pointing a bot at a server of their choosing."""
+        self.mutate(
+            login_user=user,
+            variables={
+                "input": self._request_match_input(bot, other_bot, map_pool, bot2Args="--LadderServer=evil.host")
+            },
+            expected_validation_errors={
+                "bot2Args": ["The arena client sets these itself and they cannot be overridden: LadderServer."]
+            },
+        )
+        assert not Match.objects.filter(requested_by=user).exists()
 
     @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_rejects_non_ascii(self, user, bot, other_bot, map_pool):
         self.mutate(
             login_user=user,
-            variables={
-                "input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-build=chees\u00e9")
-            },
-            expected_validation_errors={"botArgs": ["Only printable ASCII characters are allowed."]},
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, bot1Args="--build=chees\u00e9")},
+            expected_validation_errors={"bot1Args": ["Only printable ASCII characters are allowed."]},
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
@@ -242,8 +271,8 @@ class TestRequestMatch(GraphQLTest):
         renders it into downstream."""
         self.mutate(
             login_user=user,
-            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-a\n--bots-b")},
-            expected_validation_errors={"botArgs": ["Only printable ASCII characters are allowed."]},
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, bot1Args="--a\n--b")},
+            expected_validation_errors={"bot1Args": ["Only printable ASCII characters are allowed."]},
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
@@ -253,8 +282,8 @@ class TestRequestMatch(GraphQLTest):
         quietly ran without their arguments."""
         self.mutate(
             login_user=user,
-            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs='--bots-message="oops')},
-            expected_validation_errors={"botArgs": ["Could not be split into arguments: No closing quotation."]},
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, bot1Args='--message="oops')},
+            expected_validation_errors={"bot1Args": ["Could not be split into arguments: No closing quotation."]},
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
@@ -264,10 +293,8 @@ class TestRequestMatch(GraphQLTest):
         ignored at match time - the requester has to be told."""
         self.mutate(
             login_user=user,
-            variables={
-                "input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-tournament=worldcup")
-            },
-            expected_validation_errors={"botArgs": ["Bot arguments are currently disabled."]},
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, bot1Args="--tournament=worldcup")},
+            expected_validation_errors={"bot1Args": ["Bot arguments are currently disabled."]},
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
@@ -279,17 +306,17 @@ class TestRequestMatch(GraphQLTest):
             variables={"input": self._request_match_input(bot, other_bot, map_pool)},
         )
 
-        assert Match.objects.get(requested_by=user).bot_args == ""
+        assert Match.objects.get(requested_by=user).bot1_args == ""
 
     @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_rejects_too_long(self, user, bot, other_bot, map_pool):
-        too_long = "--bots-" + "a" * BOT_ARGS_MAX_LENGTH
+        too_long = "--" + "a" * BOT_ARGS_MAX_LENGTH
 
         self.mutate(
             login_user=user,
-            variables={"input": self._request_match_input(bot, other_bot, map_pool, botArgs=too_long)},
+            variables={"input": self._request_match_input(bot, other_bot, map_pool, bot1Args=too_long)},
             expected_validation_errors={
-                "botArgs": [f"Bot arguments must be at most {BOT_ARGS_MAX_LENGTH} characters long."]
+                "bot1Args": [f"Bot arguments must be at most {BOT_ARGS_MAX_LENGTH} characters long."]
             },
         )
         assert not Match.objects.filter(requested_by=user).exists()

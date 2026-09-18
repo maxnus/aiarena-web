@@ -1083,16 +1083,6 @@ class MatchType(DjangoObjectTypeWithUID):
     participant2 = graphene.Field("aiarena.graphql.BotType")
     status = graphene.String()
     result = graphene.Field("aiarena.graphql.ResultType")
-    bot1_args = graphene.List(
-        graphene.NonNull(graphene.String),
-        required=True,
-        description="Extra command line arguments to start participant 1 with.",
-    )
-    bot2_args = graphene.List(
-        graphene.NonNull(graphene.String),
-        required=True,
-        description="Extra command line arguments to start participant 2 with.",
-    )
     tags = DjangoConnectionField(
         "aiarena.graphql.MatchTagType",
         show_everyones_tags=graphene.Boolean(
@@ -1111,7 +1101,8 @@ class MatchType(DjangoObjectTypeWithUID):
             "requested_by",
             "assigned_to",
             "round",
-            "bot_args",
+            "bot1_args",
+            "bot2_args",
         ]
         filterset_class = MatchFilterSet
         connection_class = CountingConnection
@@ -1148,14 +1139,6 @@ class MatchType(DjangoObjectTypeWithUID):
     @staticmethod
     def resolve_result(root: models.Match, info, **args):
         return root.result
-
-    @staticmethod
-    def resolve_bot1_args(root: models.Match, info, **args):
-        return root.bot1_args
-
-    @staticmethod
-    def resolve_bot2_args(root: models.Match, info, **args):
-        return root.bot2_args
 
     @staticmethod
     def resolve_tags(

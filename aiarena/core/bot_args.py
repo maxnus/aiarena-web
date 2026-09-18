@@ -1,72 +1,73 @@
 """Per-match command line arguments passed on to the bot processes.
 
-A requested match can carry a free-form ASCII string supplied by the requester.
-It lets the requester give the bots context that isn't part of the bot zip —
+A requested match can carry one free-form ASCII string per bot, supplied by the
+requester. It lets the requester give a bot context that isn't part of its zip —
 "you are playing in a tournament", "play your cheese build" — without the bot
-author having to time an upload around it. Ladder matches never carry one.
+author having to time an upload around it. Ladder matches never carry any.
 
-The string is split into words the way a shell would, and each word is routed by
-its prefix:
+The string is the bot's extra command line, and it travels **verbatim**:
+website, database, API, arena client, bot process. Nothing along the way
+rewrites it. The arena client splits it into arguments the way a shell would,
+at the moment it builds the command — so a quoted space stays inside one
+argument, and ``--message="good luck"`` reaches the bot as a single argument.
 
-    --bot1-<rest>   only bot 1 receives it
-    --bot2-<rest>   only bot 2 receives it
-    --bots-<rest>   both bots receive it
+That makes this module the only place that inspects the contents, and it does so
+without changing them: it parses to find out whether the string is usable and
+then throws the result away. Everything here is a check, never a conversion.
 
-The routing prefix is replaced by ``--`` before the argument reaches the bot, so
-``--bots-foo --bot2-bar=baz`` arrives as ``--foo`` for bot 1 and
-``--foo --bar=baz`` for bot 2.
-
-Words that don't carry one of those prefixes are dropped. That is what keeps the
-feature from colliding with the arguments the arena client itself passes
-(``--LadderServer``, ``--GamePort``, ...): there is no spelling of this string
-that can override one of them.
-
-Quoting is the shell's: quotes group and then disappear, so
-``--bots-score="1:3"`` reaches the bot as ``--score=1:3``, and
-``--bots-msg="hello world"`` as the single argument ``--msg=hello world``. No
-shell ever actually runs — each word becomes one argv entry directly — so
-quoting is the only shell behaviour here. There is no expansion, substitution or
-word splitting of anything a quote produced.
+The arena client's own splitting has to agree with the splitting done here, or a
+string accepted at submit time could reach a bot as something else. That is what
+the shared table of cases in the tests is for, in this repo and in the arena
+client's.
 """
 
 import shlex
 
 
 MAX_LENGTH = 500
-"""Upper bound on the raw string. Generous for a handful of flags, small enough
-that the arguments stay reviewable in a match listing."""
+"""Upper bound on one bot's string. Generous for a handful of flags, small
+enough that the arguments stay reviewable in a match listing."""
 
-_ROUTING_PREFIXES = (
-    ("--bot1-", (True, False)),
-    ("--bot2-", (False, True)),
-    ("--bots-", (True, True)),
+RESERVED_FLAGS = frozenset(
+    {
+        "gameport",
+        "ladderserver",
+        "startport",
+        "opponentid",
+    }
 )
+"""Arguments the arena client passes to every bot itself.
 
-_ARG_PREFIX = "--"
+A requester must not be able to set these. They decide which game the bot joins
+and who it thinks it is playing, so overriding one on someone else's bot is a
+way to break their match or point them at a server of your choosing — and the
+arguments here land on the *opponent's* command line as readily as your own.
+
+Kept as a denylist because the strings now reach the bot untouched, so there is
+no namespace left to confine them to. It has to be updated alongside the
+arguments the arena client passes; the names live in bot_controller there.
+"""
 
 
-def parse_bot_args(raw: str | None) -> tuple[list[str], list[str]]:
-    """Split a match's bot args string into the arguments for bot 1 and bot 2.
+def split_bot_args(raw: str | None) -> list[str]:
+    """Split one bot's args string into words, shell-style.
 
-    Raises ValueError if the quoting doesn't close. Validation calls this so the
-    requester is told at submit time; Match decides what a stored value that
-    fails anyway should cost.
+    Raises ValueError if the quoting doesn't close. Callers use this to find out
+    whether a string is usable, never to store or serve the result — the string
+    itself is what travels.
     """
-    words = shlex.split(raw or "")
+    return shlex.split(raw or "")
 
-    bot1_args: list[str] = []
-    bot2_args: list[str] = []
 
-    for word in words:
-        for prefix, (for_bot1, for_bot2) in _ROUTING_PREFIXES:
-            if not word.startswith(prefix) or len(word) == len(prefix):
-                continue
+def reserved_flags_in(raw: str | None) -> list[str]:
+    """The reserved flag names this string would hand to a bot, in order.
 
-            arg = _ARG_PREFIX + word[len(prefix) :]
-            if for_bot1:
-                bot1_args.append(arg)
-            if for_bot2:
-                bot2_args.append(arg)
-            break
-
-    return bot1_args, bot2_args
+    Matches the spelling a bot's argument parser would see, so ``--LadderServer``
+    and ``--LadderServer=host`` are both found, in any case.
+    """
+    found = []
+    for word in split_bot_args(raw):
+        name = word.split("=", 1)[0].lstrip("-")
+        if name.lower() in RESERVED_FLAGS:
+            found.append(name)
+    return found
