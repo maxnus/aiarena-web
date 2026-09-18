@@ -46,6 +46,10 @@ class RequestMatchForm(forms.Form):
         # Pre fill the map pool selection, for user convenience
         self.initial["map_pool"] = MapPool.objects.filter(id=config.MATCH_REQUESTS_PREFILL_MAP_POOL_ID).first()
 
+        # Removed rather than hidden, so a disabled feature can't be posted to.
+        if not config.ALLOW_MATCH_REQUEST_BOT_ARGS:
+            del self.fields["bot_args"]
+
     MATCHUP_TYPE_CHOICES = (
         ("specific_matchup", "Specific Matchup"),
         ("random_ladder_bot", "Random Ladder Bot"),
@@ -169,7 +173,7 @@ class RequestMatch(LoginRequiredMixin, FormView):
             map_selection_type = form.cleaned_data["map_selection_type"]
             map_pool = form.cleaned_data["map_pool"]
             chosen_map = form.cleaned_data["map"]
-            bot_args = form.cleaned_data["bot_args"]
+            bot_args = form.cleaned_data.get("bot_args", "")
 
             match_list = match_requests.request_matches(
                 self.request.user.websiteuser,

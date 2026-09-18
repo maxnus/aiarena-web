@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import get_user
 
 import pytest
+from constance.test import override_config
 from rest_framework.authtoken.models import Token
 
 from aiarena.core.bot_args import MAX_LENGTH as BOT_ARGS_MAX_LENGTH
@@ -191,6 +192,7 @@ class TestRequestMatch(GraphQLTest):
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_are_stored_and_split_per_bot(self, user, bot, other_bot, map_pool):
         """The requester's string is stored verbatim and served back already
         split, which is the shape the arena client consumes."""
@@ -223,6 +225,7 @@ class TestRequestMatch(GraphQLTest):
         assert requested_match["bot1Args"] == []
         assert requested_match["bot2Args"] == []
 
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_rejects_non_ascii(self, user, bot, other_bot, map_pool):
         self.mutate(
             login_user=user,
@@ -233,6 +236,7 @@ class TestRequestMatch(GraphQLTest):
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_rejects_newlines(self, user, bot, other_bot, map_pool):
         """Newlines would let the string escape whatever the arena client
         renders it into downstream."""
@@ -243,6 +247,7 @@ class TestRequestMatch(GraphQLTest):
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_rejects_unclosed_quote(self, user, bot, other_bot, map_pool):
         """Better the requester hears about it here than gets a match that
         quietly ran without their arguments."""
@@ -253,6 +258,30 @@ class TestRequestMatch(GraphQLTest):
         )
         assert not Match.objects.filter(requested_by=user).exists()
 
+    def test_bot_args_rejected_while_the_feature_is_disabled(self, user, bot, other_bot, map_pool):
+        """The flag is what makes this deployable before the arena clients can
+        pass arguments on. Off, arguments must not be silently accepted and then
+        ignored at match time - the requester has to be told."""
+        self.mutate(
+            login_user=user,
+            variables={
+                "input": self._request_match_input(bot, other_bot, map_pool, botArgs="--bots-tournament=worldcup")
+            },
+            expected_validation_errors={"botArgs": ["Bot arguments are currently disabled."]},
+        )
+        assert not Match.objects.filter(requested_by=user).exists()
+
+    def test_requesting_without_bot_args_works_while_disabled(self, user, bot, other_bot, map_pool):
+        """The flag gates the arguments, not match requests."""
+        self.mutate(
+            login_user=user,
+            expected_status=200,
+            variables={"input": self._request_match_input(bot, other_bot, map_pool)},
+        )
+
+        assert Match.objects.get(requested_by=user).bot_args == ""
+
+    @override_config(ALLOW_MATCH_REQUEST_BOT_ARGS=True)
     def test_bot_args_rejects_too_long(self, user, bot, other_bot, map_pool):
         too_long = "--bots-" + "a" * BOT_ARGS_MAX_LENGTH
 

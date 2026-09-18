@@ -63,6 +63,9 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
   const data = useLazyLoadQuery<RequestMatchModalQuery>(
     graphql`
       query RequestMatchModalQuery {
+        viewer {
+          requestMatchBotArgsEnabled
+        }
         ...BotSearchList
         ...MapPoolSearchList
         ...MapSearchList
@@ -70,6 +73,8 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
     `,
     {},
   );
+
+  const botArgsEnabled = data.viewer?.requestMatchBotArgsEnabled ?? false;
 
   const [requestMatch, updating] = useMutation<RequestMatchModalMutation>(
     graphql`
@@ -189,7 +194,7 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
                 : undefined,
             mapPool:
               mapSelectionType === "map_pool" ? selectedMapPool?.id : undefined,
-            botArgs: botArgs?.trim() || "",
+            botArgs: botArgsEnabled ? botArgs?.trim() || "" : "",
           },
         },
         onCompleted: (...args) => {
@@ -311,25 +316,27 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
           ) : null}
         </div>
 
-        <label className="mt-4 flex flex-col gap-1">
-          <span className="font-medium">Bot Arguments</span>
-          <input
-            type="text"
-            value={botArgs ?? ""}
-            maxLength={BOT_ARGS_MAX_LENGTH}
-            placeholder={'--bots-tournament=worldcup --bot2-build="all in"'}
-            onChange={(e) => setBotArgs(e.target.value)}
-            aria-describedby="bot-args-help"
-          />
-          <span id="bot-args-help" className="text-sm text-gray-400">
-            Optional. Split into words like a shell command line, then words
-            prefixed with <code>--bot1-</code>, <code>--bot2-</code> or{" "}
-            <code>--bots-</code> are passed as arguments to bot 1, bot 2 or
-            both, with the prefix replaced by <code>--</code>. Anything else is
-            ignored. Quote to include spaces:{" "}
-            <code>--bots-message=&quot;good luck&quot;</code>.
-          </span>
-        </label>
+        {botArgsEnabled ? (
+          <label className="mt-4 flex flex-col gap-1">
+            <span className="font-medium">Bot Arguments</span>
+            <input
+              type="text"
+              value={botArgs ?? ""}
+              maxLength={BOT_ARGS_MAX_LENGTH}
+              placeholder={'--bots-tournament=worldcup --bot2-build="all in"'}
+              onChange={(e) => setBotArgs(e.target.value)}
+              aria-describedby="bot-args-help"
+            />
+            <span id="bot-args-help" className="text-sm text-gray-400">
+              Optional. Split into words like a shell command line, then words
+              prefixed with <code>--bot1-</code>, <code>--bot2-</code> or{" "}
+              <code>--bots-</code> are passed as arguments to bot 1, bot 2 or
+              both, with the prefix replaced by <code>--</code>. Anything else
+              is ignored. Quote to include spaces:{" "}
+              <code>--bots-message=&quot;good luck&quot;</code>.
+            </span>
+          </label>
+        ) : null}
       </Form>
     </Modal>
   );

@@ -84,8 +84,10 @@ class RequestMatchInput(CleanedInputType):
 
     @staticmethod
     def clean_bot_args(bot_args: str, info):
-        if bot_args is None:
+        if not bot_args:
             return ""
+        if not config.ALLOW_MATCH_REQUEST_BOT_ARGS:
+            raise ValidationError("Bot arguments are currently disabled.")
         validate_bot_args(bot_args)
         if len(bot_args) > BOT_ARGS_MAX_LENGTH:
             raise ValidationError(f"'botArgs' must be at most {BOT_ARGS_MAX_LENGTH} characters long.")
