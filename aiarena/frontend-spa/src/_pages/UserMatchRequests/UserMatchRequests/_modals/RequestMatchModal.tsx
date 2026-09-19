@@ -330,7 +330,7 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
                 type="text"
                 value={bot1Args ?? ""}
                 maxLength={BOT_ARGS_MAX_LENGTH}
-                placeholder="--tournament=worldcup"
+                placeholder={'--build="example build"'}
                 onChange={(e) => setBot1Args(e.target.value)}
                 aria-describedby="bot-args-help"
               />
@@ -342,7 +342,7 @@ export default function RequestMatchModal({ isOpen, onClose }: UploadBotModal) {
                 type="text"
                 value={bot2Args ?? ""}
                 maxLength={BOT_ARGS_MAX_LENGTH}
-                placeholder={'--tournament=worldcup --build="all in"'}
+                placeholder={'--opponent="example opponent"'}
                 onChange={(e) => setBot2Args(e.target.value)}
                 aria-describedby="bot-args-help"
               />
