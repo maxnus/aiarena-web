@@ -41,6 +41,7 @@ export default function CompetitionInformationSection({
           totalCount
         }
         status
+        matchmaker
       }
     `,
     competiton,
@@ -103,6 +104,19 @@ export default function CompetitionInformationSection({
                 <dt className="w-32 text-gray-400">Status</dt>
                 <dd className="flex-1 text-gray-100 font-bold">
                   {data.status}
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-32 text-gray-400">Matchmaking</dt>
+                <dd
+                  className="flex-1 text-gray-100"
+                  title={
+                    data.matchmaker === "STOCHASTIC"
+                      ? "Pairs are picked one at a time, weighing skill, fairness and variety. Each round is a day of play; divisions show standing."
+                      : "Every pair of bots in a division plays once per round."
+                  }
+                >
+                  {data.matchmaker === "STOCHASTIC" ? "Stochastic" : "Round-robin"}
                 </dd>
               </div>
               <div className="flex gap-2 justify-center">

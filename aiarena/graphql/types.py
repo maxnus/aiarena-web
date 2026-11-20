@@ -253,6 +253,7 @@ class CompetitionType(DjangoObjectTypeWithUID):
             "status",
             "award_set",
             "awards_given",
+            "matchmaker",
         ]
         filterset_class = CompetitionFilterSet
         connection_class = CountingConnection
@@ -527,6 +528,7 @@ class CompetitionParticipationType(DjangoObjectTypeWithUID):
                 round_starts = [
                     {
                         "number": r.number,
+                        "name": r.name,
                         "started": r.started.timestamp() * 1000,
                     }
                     for r in competition.round_set.order_by("started")
@@ -1330,6 +1332,9 @@ class ResultType(DjangoObjectTypeWithUID):
 
 class RoundsType(DjangoObjectTypeWithUID):
     matches = DjangoConnectionField(MatchType)
+    name = graphene.String(
+        required=True, description='"Round 12", or for a stochastic competition\'s round, the day: "Day 2026-12-03".'
+    )
 
     class Meta:
         model = models.Round
@@ -1339,6 +1344,7 @@ class RoundsType(DjangoObjectTypeWithUID):
             "finished",
             "complete",
             "competition",
+            "matchmaker",
         ]
         filter_fields = []
         connection_class = CountingConnection
@@ -1346,6 +1352,10 @@ class RoundsType(DjangoObjectTypeWithUID):
     @staticmethod
     def resolve_matches(root: models.Round, info, **kwargs):
         return root.match_set.all()
+
+    @staticmethod
+    def resolve_name(root: models.Round, info, **kwargs):
+        return root.name
 
 
 class TemporaryUploadType(DjangoObjectTypeWithUID):

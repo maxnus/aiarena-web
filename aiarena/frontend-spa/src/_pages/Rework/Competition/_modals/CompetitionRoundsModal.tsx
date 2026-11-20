@@ -51,7 +51,7 @@ export default function CompetitionRoundsModal(
           edges {
             node {
               id
-              number
+              name
               started
               finished
             }
@@ -79,14 +79,14 @@ export default function CompetitionRoundsModal(
 
   const columns = useMemo(
     () => [
-      columnHelper.accessor((row) => row.number || "", {
+      columnHelper.accessor((row) => row.name, {
         id: "id",
-        header: "Id",
+        header: "Round",
         enableSorting: false,
         cell: (info) => {
-          const label = `Round ${info.getValue()}`;
+          const label = info.getValue();
           const href = reverseUrl("round", { pk: getIDFromBase64(info.row.original.id, "RoundsType") });
-          const aria = `View round ${info.row.original.number}`;
+          const aria = `View ${label}`;
 
           return (
             <span className="flex justify-between">

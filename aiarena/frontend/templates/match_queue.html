@@ -56,6 +56,9 @@
             {% for round in round_list %}
                 <div class="divider">
                     <span></span><span><h2>{{ round.name }} [{% get_html_link "competition" round.competition %}]</h2></span><span></span></div>
+                {% if round.matchmaker == "stochastic" %}
+                    <p>Matches are picked as servers free up, so nothing is queued: these are the ones being played.</p>
+                {% endif %}
                 <table summary="Table containing information for each round" class="row-hover-highlight">
 
                     <thead>

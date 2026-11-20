@@ -33,6 +33,9 @@ class Round(models.Model, LockableModelMixin):
 
     @property
     def name(self):
+        # A stochastic round is a day of play (UTC), so it's named after the day; the others are numbered.
+        if self.matchmaker == Competition.Matchmaker.STOCHASTIC and self.started is not None:
+            return f"Day {self.started:%Y-%m-%d}"
         return "Round " + str(self.number)
 
     def __str__(self):
