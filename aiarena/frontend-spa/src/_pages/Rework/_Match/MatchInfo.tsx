@@ -29,7 +29,7 @@ export default function MatchInfo(props: MatchInfoProps) {
         }
         round {
           id
-          number
+          name
           competition {
             id
             name
@@ -158,7 +158,7 @@ export default function MatchInfo(props: MatchInfoProps) {
                   })}
                   className="text-customGreen hover:underline"
                 >
-                  {match.round?.number}
+                  {match.round?.name}
                 </Link>
               </dd>
             </div>

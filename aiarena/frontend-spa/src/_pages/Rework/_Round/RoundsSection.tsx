@@ -18,7 +18,7 @@ export default function RoundsSection(props: RoundsSectionProps) {
           name
           id
         }
-        number
+        name
         started
         finished
         ...RoundsTable_round
@@ -30,7 +30,7 @@ export default function RoundsSection(props: RoundsSectionProps) {
   return (
     <section className="h-full" aria-labelledby="results-heading">
       <h2 id="results-heading" className="sr-only">
-        Round {data.number}
+        {data.name}
       </h2>
       <div
         className={clsx(
@@ -44,7 +44,7 @@ export default function RoundsSection(props: RoundsSectionProps) {
               id="bot-information-heading"
               className="text-xl sm:text-2xl font-semibold text-white"
             >
-              Round {data.number} on{" "}
+              {data.name} on{" "}
               <a
                 href={reverseUrl("competition", {
                   pk: getIDFromBase64(data.competition.id, "CompetitionType"),

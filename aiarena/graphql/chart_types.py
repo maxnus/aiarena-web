@@ -20,6 +20,7 @@ class EloChartDataType(graphene.ObjectType):
 
 class RoundStartType(graphene.ObjectType):
     number = graphene.Int(required=True)
+    name = graphene.String(required=True)
     started = graphene.Float(required=True)
 
 
