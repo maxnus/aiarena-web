@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 
 from django.db.models import Count
 
-from aiarena.core.services.service_implementations.internal.matchmaking.rounds import update_round_if_completed
+from aiarena.core.services.service_implementations.internal.matchmaking.rounds import (
+    seal_open_rounds,
+    update_round_if_completed,
+)
 
 
 if TYPE_CHECKING:
@@ -50,3 +53,7 @@ class Competitions:
 
     def update_competition_round_if_completed(self, round: Round):
         update_round_if_completed(round)
+
+    def seal_open_rounds(self, competition: Competition):
+        """Stop adding matches to the competition's open period, completing it if it has no running matches."""
+        seal_open_rounds(competition)

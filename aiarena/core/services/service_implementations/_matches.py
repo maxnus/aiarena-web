@@ -12,7 +12,8 @@ from ._competitions import Competitions
 from .internal.match_starter import MatchStarter
 from .internal.matches import CancelResult, cancel
 from .internal.matchmaking.round_robin import RoundRobin
-from .internal.matchmaking.rounds import update_round_if_completed
+from .internal.matchmaking.rounds import seal_open_rounds, update_round_if_completed
+from .internal.matchmaking.stochastic import Stochastic
 
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ class Matches:
         self.bots_service = bots_service
         self.competitions_service = competitions_service
         self.round_robin = RoundRobin(bots_service, competitions_service)
+        self.stochastic = Stochastic()
 
     def cancel(self, match_id):
         try:
@@ -67,8 +69,18 @@ class Matches:
 
     def start_next_match_for_competition(self, requesting_ac: ArenaClient, competition: Competition):
         # LADDER MATCHES
+        stochastic = competition.matchmaker == Competition.Matchmaker.STOCHASTIC
+        if not stochastic:
+            # A period stays open only while its competition is stochastic. After a switch back to
+            # round-robin, an open period would never complete, and would count as an active round.
+            seal_open_rounds(competition)
+
+        # Unstarted matches of open rounds first: round-robin's schedule, or after a switch to
+        # stochastic, the leftovers of round-robin's last rounds. A period never holds any.
         match = self.round_robin.start_match_in_open_rounds(requesting_ac, competition)
         if match is not None:
             return match  # a match was found - we're done
 
+        if stochastic:
+            return self.stochastic.start_match(requesting_ac, competition)
         return self.round_robin.start_match_in_new_round(requesting_ac, competition)

@@ -61,11 +61,84 @@ class Competition(models.Model, LockableModelMixin):
     # Defines the minimum size of each division, also defines when divisions will split.
     target_division_size = models.IntegerField(default=2, validators=[MinValueValidator(2)], blank=True)
     # Defines the number of rounds between division updates.
-    rounds_per_cycle = models.IntegerField(default=1, validators=[MinValueValidator(1)], blank=True)
+    rounds_per_cycle = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        blank=True,
+        help_text="Rounds between division updates. A stochastic competition's rounds are days, so there it sets "
+        "how often divisions are refreshed, in days.",
+    )
     # Tracks the number of rounds that have completed this cycle.
     rounds_this_cycle = models.IntegerField(default=0, validators=[MinValueValidator(0)], blank=True)
     # Defines the number of matches that need to be played before promotions are allowed for a player.
     n_placements = models.IntegerField(default=0, validators=[MinValueValidator(0)], blank=True)
+
+    class Matchmaker(models.TextChoices):
+        ROUND_ROBIN = "round_robin", "Round-robin"
+        STOCHASTIC = "stochastic", "Stochastic"
+
+    # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
+    matchmaker = models.CharField(
+        max_length=16,
+        choices=Matchmaker.choices,
+        default=Matchmaker.ROUND_ROBIN,
+        null=True,
+        blank=True,
+        help_text="How the next match is picked. Round-robin plays every pair within a division once per round; "
+        "stochastic picks one pair at a time, weighing skill, fairness and variety, and divisions only show "
+        "standing. Switching back and forth is safe at any time.",
+    )
+    # The stochastic matchmaker's parameters. Unused by round-robin.
+    # TODO(make-not-null): Remove null=True from all of them in a follow-up migration after deploy
+    skill_weight = models.FloatField(
+        default=0.1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Stochastic: weight of skill matching.",
+    )
+    fairness_weight = models.FloatField(
+        default=1.0,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Stochastic: weight of fairness.",
+    )
+    variety_weight = models.FloatField(
+        default=0.2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Stochastic: weight of opponent variety.",
+    )
+    skill_tolerance_ranks = models.FloatField(
+        default=15.0,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Stochastic: rank difference at which a pair counts half as close as neighbours.",
+    )
+    variety_memory_games = models.FloatField(
+        default=40.0,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Stochastic: games after which a past match-up is mostly forgotten.",
+    )
+    sampling_temperature = models.FloatField(
+        default=0.02,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Stochastic: how often pairs scoring a little below the best are picked; 0 always takes the best.",
+    )
+    fairness_window_games = models.FloatField(
+        default=10.0,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Stochastic: games per bot in the fairness window, the competition's most recent matches.",
+    )
     # List of which bot races are playable in this competition. When left blank, all races are playable.
     playable_races = models.ManyToManyField(BotRace, blank=True)
     require_trusted_infrastructure = models.BooleanField(default=True)
@@ -142,6 +215,10 @@ class Competition(models.Model, LockableModelMixin):
         if self.is_open or self.is_paused:
             self.status = "closing"
             self.save()
+            # A period still accepting matches would never complete, so the competition would never close.
+            from ..services import competitions  # avoid circular import
+
+            competitions.seal_open_rounds(self)
             return None
         else:
             return f"Cannot start closing a competition with a status of {self.status}"

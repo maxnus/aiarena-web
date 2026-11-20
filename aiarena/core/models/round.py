@@ -19,6 +19,17 @@ class Round(models.Model, LockableModelMixin):
     started = models.DateTimeField(auto_now_add=True, db_index=True)
     finished = models.DateTimeField(blank=True, null=True, db_index=True)
     complete = models.BooleanField(default=False)
+    # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
+    accepts_new_matches = models.BooleanField(default=False, null=True)
+    """True only while a stochastic competition's period is open and matches are still being added to it.
+    A round that doesn't accept new matches is sealed: once all its matches have a result, it's complete.
+    NULL, as written by code from before this field existed, means False."""
+    # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
+    matchmaker = models.CharField(
+        max_length=16, choices=Competition.Matchmaker.choices, default=Competition.Matchmaker.ROUND_ROBIN, null=True
+    )
+    """Which matchmaker created this round. NULL, as on every round from before this field existed, means
+    round-robin."""
 
     @property
     def name(self):
