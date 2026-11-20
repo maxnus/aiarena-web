@@ -15,6 +15,16 @@ class MatchStarter:
     """
 
     @staticmethod
+    def start_first(matches, arenaclient: ArenaClient) -> Match | None:
+        """
+        Start the first of `matches` that can start, in order, and return it.
+        """
+        for match in matches:
+            if MatchStarter.start(match, arenaclient):
+                return match
+        return None  # No match was able to start
+
+    @staticmethod
     def start(match: Match, arenaclient: ArenaClient) -> bool:
         """
         Start the match.
@@ -64,10 +74,8 @@ class MatchStarter:
 
     @staticmethod
     def __requires_trusted_arenaclient(match):
-        require_trusted_arenaclient = match.require_trusted_arenaclient or (
-            not match.participant1.bot.bot_zip_publicly_downloadable
-            or not match.participant2.bot.bot_zip_publicly_downloadable
-            or not match.participant1.bot.bot_data_publicly_downloadable
-            or not match.participant2.bot.bot_data_publicly_downloadable
+        return (
+            match.require_trusted_arenaclient
+            or match.participant1.bot.requires_trusted_arenaclient
+            or match.participant2.bot.requires_trusted_arenaclient
         )
-        return require_trusted_arenaclient

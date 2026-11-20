@@ -228,6 +228,12 @@ class Bot(models.Model, LockableModelMixin):
             or (user.is_authenticated and user.is_arenaclient and user.arenaclient.trusted)
         )
 
+    @property
+    def requires_trusted_arenaclient(self):
+        """Whether only a trusted arenaclient can run this bot's matches: an untrusted one
+        can download neither a private bot_zip nor private bot_data (see above)."""
+        return not (self.bot_zip_publicly_downloadable and self.bot_data_publicly_downloadable)
+
     # for purpose of distinquish news in activity feed
     def get_model_name(self):
         return "Bot"
