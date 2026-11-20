@@ -77,65 +77,47 @@ class Competition(models.Model, LockableModelMixin):
         ROUND_ROBIN = "round_robin", "Round-robin"
         STOCHASTIC = "stochastic", "Stochastic"
 
-    # TODO(make-not-null): Remove null=True in a follow-up migration after deploy
     matchmaker = models.CharField(
         max_length=16,
         choices=Matchmaker.choices,
         default=Matchmaker.ROUND_ROBIN,
-        null=True,
-        blank=True,
         help_text="How the next match is picked. Round-robin plays every pair within a division once per round; "
         "stochastic picks one pair at a time, weighing skill, fairness and variety, and divisions only show "
         "standing. Switching back and forth is safe at any time.",
     )
     # The stochastic matchmaker's parameters. Unused by round-robin.
-    # TODO(make-not-null): Remove null=True from all of them in a follow-up migration after deploy
     skill_weight = models.FloatField(
         default=0.1,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(0)],
         help_text="Stochastic: weight of skill matching.",
     )
     fairness_weight = models.FloatField(
         default=1.0,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(0)],
         help_text="Stochastic: weight of fairness.",
     )
     variety_weight = models.FloatField(
         default=0.2,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(0)],
         help_text="Stochastic: weight of opponent variety.",
     )
     skill_tolerance_ranks = models.FloatField(
         default=15.0,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(1)],
         help_text="Stochastic: rank difference at which a pair counts half as close as neighbours.",
     )
     variety_memory_games = models.FloatField(
         default=40.0,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(1)],
         help_text="Stochastic: games after which a past match-up is mostly forgotten.",
     )
     sampling_temperature = models.FloatField(
         default=0.02,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(0)],
         help_text="Stochastic: how often pairs scoring a little below the best are picked; 0 always takes the best.",
     )
     fairness_window_games = models.FloatField(
         default=10.0,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(1)],
         help_text="Stochastic: games per bot in the fairness window, the competition's most recent matches.",
     )

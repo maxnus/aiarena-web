@@ -28,16 +28,8 @@ class ScoringParams:
 
     @classmethod
     def for_competition(cls, competition: Competition) -> "ScoringParams":
-        """The competition's parameters, with the defaults for any it leaves unset."""
-        defaults = cls()
-        return cls(
-            **{
-                f.name: getattr(competition, f.name)
-                if getattr(competition, f.name) is not None
-                else getattr(defaults, f.name)
-                for f in fields(cls)
-            }
-        )
+        """The competition's parameters, which its fields of the same names hold."""
+        return cls(**{f.name: getattr(competition, f.name) for f in fields(cls)})
 
 
 def f_skill(rank_a: np.ndarray, rank_b: np.ndarray, tau: float) -> np.ndarray:
