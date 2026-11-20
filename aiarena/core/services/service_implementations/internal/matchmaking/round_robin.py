@@ -187,7 +187,7 @@ class RoundRobin:
         if active_maps.count() == 0:
             raise NoMaps()
 
-        new_round = open_round(competition)
+        new_round = open_round(competition, Competition.Matchmaker.ROUND_ROBIN)
 
         active_participants = CompetitionParticipation.objects.only("id", "division_num", "bot").filter(
             competition=competition, active=True, division_num__gte=CompetitionParticipation.MIN_DIVISION

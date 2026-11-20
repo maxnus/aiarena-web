@@ -20,6 +20,16 @@ standings of a closed competition are read from. Every matchmaker opens rounds t
 so divisions and the cycle mean the same thing whichever matchmaker runs. Don't create rounds
 directly.
 
+## Two matchmakers, chosen per competition
+
+Each competition picks round-robin or stochastic, and can switch either way at any time; switching
+back is the rollback. A request first starts any unstarted match of an open round, and only then asks
+the competition's matchmaker. That one order makes switching safe without a switch action: after a
+switch to stochastic, round-robin's leftovers are played out while stochastic fills the slots they
+can't use; after a switch back, round-robin simply continues. Nothing about results, ratings or
+statistics depends on which matchmaker picked a match; a round records it only for display and for
+telling the two apart afterwards.
+
 ## Round-robin
 
 A round's whole schedule, every pair within a division once, is created when the round opens.
@@ -27,6 +37,39 @@ Matches are started from the oldest open round first. Within a round, matches be
 data go first, since those bots can play only one match at a time, then matches whose bots have
 waited longest. A new round is generated only when nothing in the open rounds can start and the
 competition is below its limit of active rounds.
+
+## Stochastic: rounds become periods
+
+The stochastic matchmaker has no schedule. Each request scores every pair of free bots on skill,
+fairness and opponent variety and samples one, and the match is created and started in one go. Its
+rounds are periods, a UTC day each: the day's first match opens one. Divisions keep updating when a
+round opens, so they keep meaning standing, but they play no part in who meets whom.
+
+A period accepts new matches until it is sealed, and only a sealed round can complete; otherwise a
+period would complete whenever its running matches happened to run out. Sealing happens whenever any
+round opens, when the competition starts closing (or it would never close), and on every request of a
+competition that isn't stochastic (after a switch back, an open period would otherwise never complete
+and would count as an active round). Sealing a round with nothing running completes it straight
+away, so seal through the helper that does both.
+
+A period never holds an unstarted match: a picked match that fails to start is rolled back. The
+first step of every request, starting unstarted matches of open rounds, relies on that to find only
+round-robin's leftovers.
+
+Every bot plays one match at a time in a stochastic competition, bots without bot data included,
+although the ladder would let those play several. On a small ladder, as when a competition opens,
+they would otherwise take every spare server and play several times as often as bots with bot data.
+On a full ladder few bots are busy, so the rule costs nothing.
+
+Whether a bot is free is decided across all competitions and requested matches; how much it has
+played, and against whom, only within this competition.
+
+## The scoring mirrors the prototype
+
+The parameters were tuned by simulation in the matchmaking prototype, so the scoring core is a pure
+port of its functions and is tested against snapshots exported from it. Changing how pairs are scored
+means changing the prototype too, re-tuning there, and exporting the snapshots again; the competition's
+parameters only make sense for the scoring they were tuned with.
 
 ## Starting a match has one authority
 

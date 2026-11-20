@@ -335,6 +335,7 @@ class CompetitionAdmin(admin.ModelAdmin):
         "date_opened",
         "date_closed",
         "status",
+        "matchmaker",
         "max_active_rounds",
         "interest",
     )
@@ -609,8 +610,10 @@ class RoundAdmin(admin.ModelAdmin):
         "started",
         "finished",
         "complete",
+        "matchmaker",
+        "accepts_new_matches",
     )
-    list_filter = ("competition", "started", "finished", "complete")
+    list_filter = ("competition", "started", "finished", "complete", "matchmaker")
     list_select_related = ["competition"]
 
 
