@@ -18,11 +18,12 @@ from aiarena.core.models.bot_race import BotRace
 from aiarena.core.services.service_implementations._bots import BotsImpl
 from aiarena.core.services.service_implementations._competitions import Competitions
 from aiarena.core.services.service_implementations._matches import Matches
+from aiarena.core.services.service_implementations.internal.matchmaking.round_robin import RoundRobin
 from aiarena.core.tests.testing_utils import create_bot_for_competition
 
 
 class MatchPrioritizationTests(TestCase):
-    """Tests for match prioritization in _attempt_to_start_a_ladder_match.
+    """Tests for match prioritization when the round-robin matchmaker starts a match in a round.
 
     Verifies that:
     - Bots with data enabled are prioritized over those without.
@@ -45,7 +46,7 @@ class MatchPrioritizationTests(TestCase):
 
         self.bots_service = BotsImpl()
         self.competitions_service = Competitions()
-        self.matches_service = Matches(self.bots_service, self.competitions_service)
+        self.round_robin = RoundRobin(self.bots_service, self.competitions_service)
 
     def _create_bot(self, name, bot_data_enabled=False):
         return create_bot_for_competition(
@@ -104,7 +105,7 @@ class MatchPrioritizationTests(TestCase):
         # match_nodata
         self._create_round_match(round_obj, bot_nodata1, bot_nodata2)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, round_obj)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, round_obj)
 
         self.assertIsNotNone(started_match)
         self.assertEqual(started_match.id, match_data.id)
@@ -134,7 +135,7 @@ class MatchPrioritizationTests(TestCase):
         # match_recent_bots
         self._create_round_match(new_round, bot3, bot4)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, new_round)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, new_round)
 
         self.assertIsNotNone(started_match)
         self.assertEqual(started_match.id, match_old_bots.id)
@@ -151,7 +152,7 @@ class MatchPrioritizationTests(TestCase):
         # match_nodata
         self._create_round_match(round_obj, bot_nodata1, bot_nodata2)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, round_obj)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, round_obj)
 
         self.assertIsNotNone(started_match)
         self.assertEqual(started_match.id, match_data_new.id)
@@ -168,7 +169,7 @@ class MatchPrioritizationTests(TestCase):
         # match_nodata
         self._create_round_match(round_obj, bot_nodata2, bot_nodata3)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, round_obj)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, round_obj)
 
         self.assertIsNotNone(started_match)
         self.assertEqual(started_match.id, match_mixed.id)
@@ -197,7 +198,7 @@ class MatchPrioritizationTests(TestCase):
         # match_new_bots
         self._create_round_match(new_round, bot_data_new1, bot_data_new2)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, new_round)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, new_round)
 
         self.assertIsNotNone(started_match)
         self.assertEqual(started_match.id, match_old_bots.id)
@@ -224,7 +225,7 @@ class MatchPrioritizationTests(TestCase):
         match_with_old = self._create_round_match(new_round, bot_data1, bot_nodata_old)
         match_with_recent = self._create_round_match(new_round, bot_data1, bot_nodata_recent)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, new_round)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, new_round)
 
         self.assertIsNotNone(started_match)
         # Both matches have one data-enabled bot (bot_data1) whose last match start was 5 minutes ago.
@@ -255,7 +256,7 @@ class MatchPrioritizationTests(TestCase):
         # match_old_bots
         self._create_round_match(new_round, bot_old1, bot_old2)
 
-        started_match = self.matches_service._attempt_to_start_a_ladder_match(self.arenaclient, new_round)
+        started_match = self.round_robin.start_match_in_round(self.arenaclient, new_round)
 
         self.assertIsNotNone(started_match)
         # Bots with no history get epoch (datetime.min) which sorts earliest,

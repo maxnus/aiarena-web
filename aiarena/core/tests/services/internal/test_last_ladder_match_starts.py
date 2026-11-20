@@ -18,8 +18,8 @@ from django.utils import timezone
 import pytest
 
 from aiarena.core.models import CompetitionParticipation, Match, MatchParticipation, Round
-from aiarena.core.services.service_implementations import _matches
-from aiarena.core.services.service_implementations._matches import _last_ladder_match_starts
+from aiarena.core.services.service_implementations.internal.matchmaking import round_robin
+from aiarena.core.services.service_implementations.internal.matchmaking.round_robin import _last_ladder_match_starts
 
 
 def _reference_query(bot_ids):
@@ -137,7 +137,7 @@ def test_match_just_outside_the_first_window_is_found(last_ladder_match_starts, 
     find it rather than reporting it as never having played."""
     bot1, bot2 = make_bot("bot1"), make_bot("bot2")
     # Far enough back that several widening steps are needed to reach it.
-    started = timezone.now() - (_matches._LAST_MATCH_WINDOW_START * _matches._LAST_MATCH_WINDOW_GROWTH**2)
+    started = timezone.now() - (round_robin._LAST_MATCH_WINDOW_START * round_robin._LAST_MATCH_WINDOW_GROWTH**2)
     make_match(bot1, bot2, started=started)
 
     assert last_ladder_match_starts([bot1.id, bot2.id]) == {bot1.id: started, bot2.id: started}
@@ -149,7 +149,7 @@ def test_widened_pass_still_reports_the_true_maximum(last_ladder_match_starts, m
     at once and must report the most recent, not merely the first one found."""
     bot1, bot2 = make_bot("bot1"), make_bot("bot2")
     now = timezone.now()
-    step = _matches._LAST_MATCH_WINDOW_START * _matches._LAST_MATCH_WINDOW_GROWTH
+    step = round_robin._LAST_MATCH_WINDOW_START * round_robin._LAST_MATCH_WINDOW_GROWTH
     make_match(bot1, bot2, started=now - step * 4)
     latest = now - step * 2
     make_match(bot1, bot2, started=latest)
@@ -164,9 +164,9 @@ def test_start_time_exactly_on_the_window_boundary(last_ladder_match_starts, mak
     the next pass -- either way the value must be exact."""
     bot1, bot2 = make_bot("bot1"), make_bot("bot2")
     now = timezone.now()
-    boundary = now - _matches._LAST_MATCH_WINDOW_START
+    boundary = now - round_robin._LAST_MATCH_WINDOW_START
     make_match(bot1, bot2, started=boundary)
-    monkeypatch.setattr(_matches.timezone, "now", lambda: now)
+    monkeypatch.setattr(round_robin.timezone, "now", lambda: now)
 
     assert last_ladder_match_starts([bot1.id, bot2.id]) == {bot1.id: boundary, bot2.id: boundary}
 
@@ -219,7 +219,7 @@ def test_clock_before_the_arena_epoch(last_ladder_match_starts, make_bot, make_m
     bot1, bot2 = make_bot("bot1"), make_bot("bot2")
     started = datetime(2017, 3, 1, tzinfo=UTC)
     make_match(bot1, bot2, started=started)
-    monkeypatch.setattr(_matches.timezone, "now", lambda: datetime(2018, 6, 1, tzinfo=UTC))
+    monkeypatch.setattr(round_robin.timezone, "now", lambda: datetime(2018, 6, 1, tzinfo=UTC))
 
     assert last_ladder_match_starts([bot1.id, bot2.id]) == {bot1.id: started, bot2.id: started}
 
@@ -250,7 +250,7 @@ def test_never_played_bot_does_not_step_through_every_window(make_bot, make_matc
 def test_clock_before_epoch_costs_one_query(make_bot, make_match, monkeypatch, django_assert_num_queries):
     bot1, bot2 = make_bot("bot1"), make_bot("bot2")
     make_match(bot1, bot2, started=datetime(2017, 3, 1, tzinfo=UTC))
-    monkeypatch.setattr(_matches.timezone, "now", lambda: datetime(2018, 6, 1, tzinfo=UTC))
+    monkeypatch.setattr(round_robin.timezone, "now", lambda: datetime(2018, 6, 1, tzinfo=UTC))
 
     with django_assert_num_queries(1):
         _last_ladder_match_starts([bot1.id, bot2.id])
