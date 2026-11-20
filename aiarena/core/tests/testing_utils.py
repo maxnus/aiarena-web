@@ -1,3 +1,5 @@
+from dataclasses import fields
+
 from django.core.files import File
 from django.test import Client
 from django.urls import reverse
@@ -8,6 +10,7 @@ from aiarena.core.models import ArenaClient, Bot, Competition, CompetitionPartic
 from aiarena.core.models.bot_race import BotRace
 from aiarena.core.models.game import Game
 from aiarena.core.models.game_mode import GameMode
+from aiarena.core.services.service_implementations.internal.matchmaking.scoring import ScoringParams
 
 
 class TestAssetPaths:
@@ -46,6 +49,11 @@ def create_game_races():
     zerg = BotRace.objects.get(label="Z")
     protoss = BotRace.objects.get(label="P")
     return protoss, terran, zerg
+
+
+def _matchmaking_form_fields(competition: Competition) -> dict:
+    """The competition's matchmaking fields, which the admin form requires, as the form would post them."""
+    return {field: getattr(competition, field) for field in ["matchmaker", *(f.name for f in fields(ScoringParams))]}
 
 
 def create_bot_for_competition(
@@ -190,6 +198,7 @@ class TestingClient:
                 "game_mode": game_mode_id,
                 "playable_races": playable_race_ids,
                 "require_trusted_infrastructure": require_trusted_infrastructure,
+                **_matchmaking_form_fields(Competition()),
                 **kwargs,
             },
         )
@@ -206,6 +215,7 @@ class TestingClient:
             "competition": competition_id,
             "name": competition.name,  # required by the form
             "game_mode": competition.game_mode_id,  # required by the form
+            **_matchmaking_form_fields(competition),  # required by the form
             # if this isn't set here, it reverts to false - I don't understand why :(
             "indepth_bot_statistics_enabled": competition.indepth_bot_statistics_enabled,
         }
@@ -222,6 +232,7 @@ class TestingClient:
             "competition": competition_id,
             "name": competition.name,  # required by the form
             "game_mode": competition.game_mode_id,  # required by the form
+            **_matchmaking_form_fields(competition),  # required by the form
         }
         response = self.django_client.post(url, data)
 
@@ -236,6 +247,7 @@ class TestingClient:
             "competition": competition_id,
             "name": competition.name,  # required by the form
             "game_mode": competition.game_mode_id,  # required by the form
+            **_matchmaking_form_fields(competition),  # required by the form
         }
         response = self.django_client.post(url, data)
 

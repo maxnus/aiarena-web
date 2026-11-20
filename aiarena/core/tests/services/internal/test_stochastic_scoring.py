@@ -49,14 +49,13 @@ def test_matches_the_prototype(params, snapshot):
     assert best == snapshot["best"]
 
 
-def test_params_take_the_competition_values_and_default_the_rest():
-    competition = Competition(skill_weight=0.3, sampling_temperature=0.0, fairness_window_games=None)
+def test_params_are_the_competitions_and_default_to_the_tuned_values():
+    assert ScoringParams.for_competition(Competition()) == ScoringParams()
 
-    params = ScoringParams.for_competition(competition)
+    params = ScoringParams.for_competition(Competition(skill_weight=0.3, sampling_temperature=0.0))
 
     assert params.skill_weight == 0.3
-    assert params.sampling_temperature == 0.0  # zero is a value, not unset
-    assert params.fairness_window_games == ScoringParams().fairness_window_games
+    assert params.sampling_temperature == 0.0
 
 
 def test_sampling_favours_higher_scores():
